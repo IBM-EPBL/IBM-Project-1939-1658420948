@@ -1,0 +1,212 @@
+// Rev16/11/2019
+// lclaurenti@hotmail.com
+
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(A0,A1,A2,A3,A4,A5);
+#include <Servo.h>
+#include <Keypad.h>
+const int pingPin = 1;
+bool senhaErrada; // Se errar a senha 3 vezes, trava o sistema
+uint8_t numErros;
+const byte NUM_LINHAS  = 4;
+const byte NUM_COLUNAS = 4;
+const byte led[]={4,3,2};
+
+char mapaTeclas[NUM_LINHAS][NUM_COLUNAS]={{'1','2','3','A'},
+                                          {'4','5','6','B'},
+                                          {'7','8','9','C'},
+                                          {'*','0','#','D'}};
+String senha="A159"; // Cadastre uma senha qualquer, com quantos caracteres desejar
+String digitada;
+uint8_t estado=0;
+byte pinos_linha[NUM_LINHAS]={12,11,10,9};
+byte pinos_coluna[NUM_COLUNAS]={8,7,6,5};
+
+Keypad teclado = Keypad(makeKeymap(mapaTeclas),pinos_linha,pinos_coluna,NUM_LINHAS,NUM_COLUNAS);
+Servo servo;
+
+bool verificaSenha(String sa, String sd);
+void mostrar(uint8_t);
+void efeito();
+long microsecondsToCentimeters(long microseconds);
+
+
+void setup()
+{  Serial.begin(9600);
+  lcd.begin(16,2);
+  delay (100);
+  lcd.setCursor(0,0);
+  lcd.print("welcome");
+  lcd.setCursor(0,1);
+  lcd.print("manihrudhay");
+ 
+  for(uint8_t i=0; i<3; i++)
+    pinMode(led[i],OUTPUT);  //leds:vermelho,verde,amarelo
+ 
+  efeito();
+ 
+  servo.attach(13);
+  servo.write(0);
+  delay(1000);
+ 
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("enter password  ");
+ 
+  senhaErrada = false;
+  numErros = 0;
+}
+
+
+void loop()
+{
+  long duration, cm;
+
+  // The PING))) is triggered by a HIGH pulse of 2 or more microseconds.
+  // Give a short LOW pulse beforehand to ensure a clean HIGH pulse:
+  pinMode(pingPin, OUTPUT);
+  digitalWrite(pingPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pingPin, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pingPin, LOW);
+  pinMode(pingPin, INPUT);
+  duration = pulseIn(pingPin, HIGH);
+  cm = microsecondsToCentimeters(duration);
+  if(cm<100) {
+     while(1)
+     {
+     char tecla = teclado.getKey();
+ 
+     if(tecla != NO_KEY)
+  {
+    estado = 1;
+   
+    if(tecla == '#')
+    {
+      if(verificaSenha(senha,digitada))
+      {
+        estado = 3;
+        mostrar(estado);
+        delay(3000);
+        estado = 0;
+      }
+      else
+      {
+        estado = 2;
+        mostrar(estado);
+        delay(3000);
+        estado = 0;
+      }
+     
+      digitada = "";
+    }
+    else digitada += tecla;
+    mostrar(estado);
+  }
+     }  
+  }
+  else {
+
+  }
+ 
+  delay(100);
+ 
+ 
+}
+
+
+
+bool verificaSenha(String sa, String sd) // senha atual, senha digitada
+{
+  bool resultado = false;
+  if(sa.compareTo(sd)==0)   // Compara senha atual com senha digitada
+    resultado = true;
+  else
+    resultado = false;
+  return resultado;
+}
+
+
+
+void mostrar(uint8_t e=0)
+{ if(e==0)                 // Aguardando digitar
+  {
+    lcd.setCursor(0,0);
+    lcd.print("enter ur password");
+    digitalWrite(led[0],0);
+    digitalWrite(led[1],0);
+    digitalWrite(led[2],0);
+    servo.write(0);         // Não move servo
+  }
+ 
+  else if(e==1)             // Digitando
+  {
+    lcd.setCursor(0,0);
+    lcd.print("entering...   ");
+    digitalWrite(led[0],0);
+    digitalWrite(led[1],0);      
+    digitalWrite(led[2],1);
+  }
+ 
+  else if(e==2)              // Senha incorreta.
+  {
+    lcd.setCursor(0,0);
+    lcd.print("incorrect password ");
+    digitalWrite(led[0],1);    
+    digitalWrite(led[1],0);      
+    digitalWrite(led[2],0);  
+   
+    numErros++;
+    if(numErros >= 3) senhaErrada = true;
+    while(senhaErrada )     // Se errar 3 vezes trava o sistema
+    {
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("password error");
+      lcd.setCursor(0,1);
+      lcd.print("system locked   ");
+      efeito();
+    }
+  }
+ 
+  else if(e==3)              // Senha correta.  
+  {
+    lcd.setCursor(0,0);
+    lcd.print("welcome to myhomes");
+    digitalWrite(led[0],0);        
+    digitalWrite(led[1],1);      
+    digitalWrite(led[2],0);
+    delay(1000);
+    efeito();
+    lcd.setCursor(0,0);
+    lcd.print("park at ur own risk  ");
+    delay(1000);            
+    servo.write(90);
+    void loop();// move servo para liberar a tranca
+  }
+}
+
+
+
+
+void efeito()
+{
+  for(int j=0; j<4; j++)
+  {
+   for(int i=0; i<3; i++)
+   {
+     digitalWrite(led[i],(!digitalRead(led[i])));
+     delay(30);
+    digitalWrite(led[i],(!digitalRead(led[i])));
+    delay(30);
+   }
+  }
+}
+long microsecondsToCentimeters(long microseconds) {
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the distance of the
+  // object we take half of the distance travelled.
+  return microseconds / 29 / 2;
+}
+
